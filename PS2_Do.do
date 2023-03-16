@@ -28,8 +28,13 @@ use "/Users/dannyfoltz/Desktop/Econometrics 2/Problem Set 2/Foltz_Alpyspayeva_De
 *** GRAPH 1
 
 
+<<<<<<< Updated upstream
 gen dealer_string = "Non-Dealer" if dealer == 5555 
 replace dealer_string = "Dealer" if dealer == 15
+=======
+gen dealer_string = "Non-Dealer" if dealer == 44444444
+replace dealer_string = "Dealer" if dealer == 1
+>>>>>>> Stashed changes
 
 graph hbox photos, over(dealer_string, label(labsize(*0.5))) ytitle("Number of Photos") title("Box Plot: Number of Photos by Dealer / Non-Dealer")
 
