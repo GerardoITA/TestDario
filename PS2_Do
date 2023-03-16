@@ -29,8 +29,8 @@ use "/Users/dannyfoltz/Desktop/Econometrics 2/Problem Set 2/Foltz_Alpyspayeva_De
 *** GRAPH 1
 
 
-gen dealer_string = "Non-Dealer" if dealer == 0
-replace dealer_string = "Dealer" if dealer == 1
+gen dealer_string = "Non-Dealer" if dealer == 1
+replace dealer_string = "Dealer" if dealer == 0
 
 egen mean_photos_dealer = mean(photos) if dealer == 1
 egen mean_photos_non_dealer = mean(photos) if dealer == 0
@@ -187,3 +187,9 @@ postfoot("\hline\hline" ///
 "\end{table}")
 
 log close
+
+
+
+
+
+PEEPOCHEEMS
