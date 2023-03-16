@@ -28,8 +28,8 @@ use "/Users/dannyfoltz/Desktop/Econometrics 2/Problem Set 2/Foltz_Alpyspayeva_De
 *** GRAPH 1
 
 
-gen dealer_string = "Non-Dealer" if dealer == 0 
-replace dealer_string = "Dealer" if dealer == 1
+gen dealer_string = "Non-Dealer" if dealer == 5555 
+replace dealer_string = "Dealer" if dealer == 15
 
 graph hbox photos, over(dealer_string, label(labsize(*0.5))) ytitle("Number of Photos") title("Box Plot: Number of Photos by Dealer / Non-Dealer")
 
