@@ -1,0 +1,189 @@
+/*===============================================================================
+ Date: 03/17/2023
+ Econometrics 2, LMEC
+ 
+ Dariga Alpyspayeva (0001075320); 
+ James Daniel Foltz (0001076043); 
+ Dario Alfredo De Falco (0001078926)
+================================================================================
+								Problem Set 2
+================================================================================*/
+
+clear all
+set more off
+capture log close
+
+cd "/Users/dannyfoltz/Desktop/Econometrics 2/Problem Set 2/Foltz_Alpyspayeva_DeFalco"
+
+log using "PS2_Log", text replace   
+
+use "/Users/dannyfoltz/Desktop/Econometrics 2/Problem Set 2/Foltz_Alpyspayeva_DeFalco/PS2.dta", clear
+
+
+*===============================================================================
+*                    Part 1: Data Exploration      
+*===============================================================================
+
+* Q1:
+
+*** GRAPH 1
+
+
+gen dealer_string = "Non-Dealer" if dealer == 0
+replace dealer_string = "Dealer" if dealer == 1
+
+egen mean_photos_dealer = mean(photos) if dealer == 1
+egen mean_photos_non_dealer = mean(photos) if dealer == 0
+
+
+graph hbox photos, over(dealer_string, label(labsize(*0.5))) ytitle("Number of Photos") title("Box Plot: Number of Photos by Dealer / Non-Dealer")
+
+histogram photos, by(dealer_string, title("Photos for Listing: Dealer vs. Non-Dealer")) normal
+
+graph export Graph_1.png, replace
+
+*===============================================================================
+
+* Q2:
+
+bysort _sofsoftwar_1: egen mean_photos_sw1 = mean(photos) if _sofsoftwar_1 == 1 & dealer == 1
+bysort _sofsoftwar_2: egen mean_photos_sw2 = mean(photos) if _sofsoftwar_2 == 1 & dealer == 1
+bysort _sofsoftwar_3: egen mean_photos_sw3 = mean(photos) if _sofsoftwar_3 == 1 & dealer == 1
+
+egen no_software = rowtotal(_sofsoftwar_1 _sofsoftwar_2 _sofsoftwar_3)
+bysort no_software: egen mean_no_software = mean(photos) if no_software == 0
+
+* Creating new dataframe to use
+frame copy default collapsed_data
+
+frame change collapsed_data
+
+collapse (mean) mean_photos_sw1 = mean_photos_sw1 mean_photos_sw2 = mean_photos_sw2 mean_photos_sw3 = mean_photos_sw3 mean_no_softwareno_software = mean_no_software
+
+*** GRAPH 2
+
+graph bar mean_no_software mean_photos_sw1 mean_photos_sw2 mean_photos_sw3 , yvaroptions(relabel(1 "Avg. Photos - eBay Hosting" 2 "Avg. Photos - auction123" 3 "Avg. Photos - carad" 4 "Avg. Photos - eBizAutos"))
+
+graph export Graph_2.png, replace
+
+*===============================================================================
+
+* Q3:
+
+* Switching back to data before collapsing
+
+frame change default
+
+
+drop if dealer == 0 // dropping non-dealers from now on
+
+*** GRAPH 3
+graph box logbid1, over(photos, label(labsize(*0))) ytitle("Log Bid") title("Box Plot: Log Bid vs. Number of Photos")
+
+graph export Graph_3.png, replace
+
+*** GRAPH 3 - CLEANED
+graph box logbid1, over(photos, label(labsize(*0))) ytitle("Log Bid") title("Box Plot: Log Bid vs. Number of Photos") nooutsides
+
+graph export Graph_3_cleaned.png, replace
+
+*===============================================================================
+*                    Part 2: Analysis      
+*===============================================================================
+
+* Q1:
+
+* What is photos supposed to be correlated with in the error term???
+
+global X "logmiles options logfdback negpct"
+
+regress logbid1 photos $X, vce(cluster sellerid)
+estimates store reg_q1
+
+*===============================================================================
+
+*** ANSWERING Q4 BEFORE Q3 & Q2 AS PER EMAIL
+
+* Q4:
+
+ivreg2 logbid1 $X (photos = _sofsoftwar_2), first endog(photos) cluster(sellerid)
+estimates store reg_q4
+
+*===============================================================================
+
+* Q2:
+
+regress photos _sofsoftwar_2 $X , vce(cluster sellerid), if _est_reg_q4 == 1
+estimates store reg_q2_1
+predict v, resid
+
+reg logbid1 photos v $X, vce(cluster sellerid)
+estimates store reg_q2_2
+
+*===============================================================================
+
+* Q3:
+
+regress photos _sofsoftwar_2 $X , vce(cluster sellerid), if _est_reg_q4 == 1 //first stage, regressing based on sample used for Q4 above
+estimate store reg_q3_1 //save estimates
+predict x_hat, xb //predictions
+
+regress logbid1 x_hat $X, vce(cluster sellerid), if _est_reg_q4 //second stage with predictors
+estimate store reg_q3_2
+
+*===============================================================================
+
+* Q5:
+
+ivreg2 logbid1 (photos = _sofsoftwar_2 _sofsoftwar_3) $X, first endog(photos) cluster(sellerid)
+estimates store reg_q5
+
+*===============================================================================
+
+* Q6:
+
+ivreg2 logbid1 (photos = _sofsoftwar_2 _sofsoftwar_3) $X , first endog(photos)
+estimates store reg_q6_1
+ivregress 2sls logbid1 (photos = _sofsoftwar_2 _sofsoftwar_3) $X if _est_reg_q4 == 1
+predict resid2, residuals
+estimates store reg_q6_2
+
+regress resid2 _sofsoftwar_2 _sofsoftwar_3 $X
+estimates store reg_q6_3
+di e(r2)*e(N)
+
+
+*===============================================================================
+
+*** TABLE OF RESULTS
+
+esttab reg_q1 reg_q2_1 reg_q2_2 reg_q3_1 reg_q3_2 reg_q4 reg_q5 reg_q6_1 reg_q6_2 reg_q6_3 using "esttab.tex", replace ///
+star(* 0.10 ** 0.05 *** 0.01) b(a3) se(3) nonum nogaps ///
+stats(N, fmt(0 3) labels("Observations")) ///
+se ///
+varlabel(logmiles "Log miles" /// //
+		 logfdback "Log feedback" ///
+		 options "Number of options" ///
+		 negpct "Negative feedback" ///
+		 _sofsoftwar_2 "CARad" ///
+		 _sofsoftwar_3 "eBizAutos" ///
+		 _cons "Constant"    ///
+		 photos "Photos"	///
+		 v "Residuals"		///
+		 x_hat "Fitted Values")	///
+prehead("\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}" ///
+"\begin{table}[h]" ///
+"\centering" ///
+"\caption{Regression Tables}" ///
+"\label{regression}" ///
+"\resizebox{1\textwidth}{!}{%" ///
+"\begin{tabular}{l*{10}{c}}" ///
+"\hline\hline") ///
+mtitles("Q1" "Q2 - Stage 1 " "Q2 - Stage 2" "Q3 - Stage 1" "Q3 - Stage 2" "Q4" "Q5" "Q6 - homosked." "Q6 - IV Regress Stage 1" "Q6 - IV Regress Stage 2") ///
+postfoot("\hline\hline" ///
+"\multicolumn{10}{l}{\footnotesize \sym{*} \(p<0.10\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\). Standard errors in parentheses} \\" ///
+"\end{tabular}" ///
+"}" ///
+"\end{table}")
+
+log close
